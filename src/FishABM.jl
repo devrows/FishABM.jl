@@ -24,6 +24,7 @@ module FishABM
     AgentDB,
     findCurrentStage,
     injectAgents!,
+    kill!,
     removeEmptyClass!,
 
     # environment.jl functions
