@@ -60,24 +60,24 @@ function kill!(agent_db::Vector, e_a::EnvironmentAssumptions, a_a::AgentAssumpti
   classLength = length((agent_db[1]).weekNum)
 
   for i = 1:length(agent_db)
-    while (isEmpty(agent_db[i]) && i != length(agent_db))
-      i += 1
-    end
-    for j = 1:classLength
+    #Check if class is empty. If not empty, continue with kill function. Otherwise skip to next agent
+    if (isEmpty(agent_db[i]) == false)
+      for j = 1:classLength
 
-      current_age = week - agent_db[i].weekNum[j]
-      stage = findCurrentStage(current_age, a_a.growth)
-      if agent_db[i].alive[j] > 0
-
-        habitat = e_a.habitat[agent_db[i].locationID]
-
-        #Number of fish killed follows binomial distribution with arguments of number of fish alive
-        #and natural mortality in the form of a probability
-        killed = rand(Binomial(agent_db[i].alive[j], a_a.naturalmortality[habitat, stage]))
-        agent_db[i].alive[j] -= killed
+        current_age = week - agent_db[i].weekNum[j]
+        stage = findCurrentStage(current_age, a_a.growth)
         if agent_db[i].alive[j] > 0
-          killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
+
+          habitat = e_a.habitat[agent_db[i].locationID]
+
+          #Number of fish killed follows binomial distribution with arguments of number of fish alive
+          #and natural mortality in the form of a probability
+          killed = rand(Binomial(agent_db[i].alive[j], a_a.naturalmortality[habitat, stage]))
           agent_db[i].alive[j] -= killed
+          if agent_db[i].alive[j] > 0
+            killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
+            agent_db[i].alive[j] -= killed
+          end
         end
       end
     end
