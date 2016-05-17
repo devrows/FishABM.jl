@@ -28,7 +28,6 @@ function AgentDB(enviro::EnvironmentAssumptions)
   return agent_db
 end
 
-
 #=
   Tweak this to find the current stage from the current_week and spawn_week
 =#
@@ -60,21 +59,25 @@ function kill!(agent_db::Vector, e_a::EnvironmentAssumptions, a_a::AgentAssumpti
   """
   classLength = length((agent_db[1]).weekNum)
 
-  for i = 1:length(e_a.spawningHash)
+  for i = 1:length(agent_db)
+    while (isEmpty(agent_db[i]) && i != length(agent_db))
+      i += 1
+    end
     for j = 1:classLength
-      current_age = week - agent_db[e_a.spawningHash[i]].weekNum[j]
-      stage = findCurrentStage(current_age, a_a.growth)
-      if agent_db[e_a.spawningHash[i]].alive[j] > 0
 
-        habitat = e_a.habitat[agent_db[e_a.spawningHash[i]].locationID]
+      current_age = week - agent_db[i].weekNum[j]
+      stage = findCurrentStage(current_age, a_a.growth)
+      if agent_db[i].alive[j] > 0
+
+        habitat = e_a.habitat[agent_db[i].locationID]
 
         #Number of fish killed follows binomial distribution with arguments of number of fish alive
         #and natural mortality in the form of a probability
-        killed = rand(Binomial(agent_db[e_a.spawningHash[i]].alive[j], a_a.naturalmortality[habitat, stage]))
-        agent_db[e_a.spawningHash[i]].alive[j] -= killed
-        if agent_db[e_a.spawningHash[i]].alive[j] > 0
-          killed = rand(Binomial(agent_db[e_a.spawningHash[i]].alive[j], a_a.extramortality[stage]))
-          agent_db[e_a.spawningHash[i]].alive[j] -= killed
+        killed = rand(Binomial(agent_db[i].alive[j], a_a.naturalmortality[habitat, stage]))
+        agent_db[i].alive[j] -= killed
+        if agent_db[i].alive[j] > 0
+          killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
+          agent_db[i].alive[j] -= killed
         end
       end
     end

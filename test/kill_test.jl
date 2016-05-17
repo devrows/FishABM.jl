@@ -126,10 +126,23 @@ initialStock = [500000, 1000000, 1500000, 2000000]
 
 using ProgressMeter
 adb = simulate_test(k, effortVar, bumpVar, initialStock, enviro_a, adult_a, a_a)
+type MortalitySummary
+  """
+    Last Update: March 2016
+  """
+  locationID::Int64
+  killed::Vector
+
+  MortalitySummary() = new()
+  MortalitySummary(locationID, killed) = new(locationID, killed)
+end
+m_s = MortalitySummary(41433, [0,0,0,0])
 
 kill_test!(adb, enviro_a, a_a, 0)
 
-adb[enviro_a.spawningHash[1]].alive
+adb[enviro_a.spawningHash[1]].alive[2]
+
+m_s
 
 function kill_test!(agent_db::Vector, e_a::FishABM.EnvironmentAssumptions, a_a::FishABM.AgentAssumptions, week::Int64)
   """
@@ -138,21 +151,25 @@ function kill_test!(agent_db::Vector, e_a::FishABM.EnvironmentAssumptions, a_a::
   """
   classLength = length((agent_db[1]).weekNum)
 
-  for i = 1:length(e_a.spawningHash)
-    for j = 1:classLength
-      current_age = week - agent_db[e_a.spawningHash[i]].weekNum[j]
-      stage = findCurrentStage(current_age, a_a.growth)
-      if agent_db[e_a.spawningHash[i]].alive[j] > 0
+  for i = 1:length(agent_db)
+    #Check if class is empty. If not empty, continue with kill function. Otherwise skip to next agent
+    if (isEmpty(agent_db[i]) == false)
+      for j = 1:classLength
 
-        habitat = e_a.habitat[agent_db[e_a.spawningHash[i]].locationID]
+        current_age = week - agent_db[i].weekNum[j]
+        stage = findCurrentStage(current_age, a_a.growth)
+        if agent_db[i].alive[j] > 0
 
-        #Number of fish killed follows binomial distribution with arguments of number of fish alive
-        #and natural mortality in the form of a probability
-        killed = rand(Binomial(agent_db[e_a.spawningHash[i]].alive[j], a_a.naturalmortality[habitat, stage]))
-        agent_db[e_a.spawningHash[i]].alive[j] -= killed
-        if agent_db[e_a.spawningHash[i]].alive[j] > 0
-          killed = rand(Binomial(agent_db[e_a.spawningHash[i]].alive[j], a_a.extramortality[stage]))
-          agent_db[e_a.spawningHash[i]].alive[j] -= killed
+          habitat = e_a.habitat[agent_db[i].locationID]
+
+          #Number of fish killed follows binomial distribution with arguments of number of fish alive
+          #and natural mortality in the form of a probability
+          killed = rand(Binomial(agent_db[i].alive[j], a_a.naturalmortality[habitat, stage]))
+          agent_db[i].alive[j] -= killed
+          if agent_db[i].alive[j] > 0
+            killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
+            agent_db[i].alive[j] -= killed
+          end
         end
       end
     end
@@ -179,4 +196,21 @@ function findCurrentStage(current_age::Int64, growth_age::Vector)
   end
 
   return currentStage
+end
+
+function MortalitySumm_test(enviro::EnvironmentAssumptions)
+  m_summary = [MortalSummary(0)]; init = false;
+  length = (size(enviro.habitat)[1])*(size(enviro.habitat)[2])
+  for i = 1:length
+    if enviro.habitat[i] > 0
+      if init == false
+        m_summary[1].locationID = i
+        init = true
+      else
+        push!(m_summary, MortalSummary(i))
+      end
+    end
+  end
+
+  return m_summary
 end
