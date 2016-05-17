@@ -53,6 +53,35 @@ function findCurrentStage(current_age::Int64, growth_age::Vector)
   return currentStage
 end
 
+function kill!(agent_db::Vector, e_a::EnvironmentAssumptions, a_a::AgentAssumptions, week::Int64)
+  """
+    This function generates a mortality based on the stage of the fish and its corresponding natural mortality
+    and its location within the habitat as described in EnvironmentAssumptions.
+  """
+  classLength = length((agent_db[1]).weekNum)
+
+  for i = 1:length(e_a.spawningHash)
+    for j = 1:classLength
+      current_age = week - agent_db[e_a.spawningHash[i]].weekNum[j]
+      stage = findCurrentStage(current_age, a_a.growth)
+      if agent_db[e_a.spawningHash[i]].alive[j] > 0
+
+        habitat = e_a.habitat[agent_db[e_a.spawningHash[i]].locationID]
+
+        #Number of fish killed follows binomial distribution with arguments of number of fish alive
+        #and natural mortality in the form of a probability
+        killed = rand(Binomial(agent_db[e_a.spawningHash[i]].alive[j], a_a.naturalmortality[habitat, stage]))
+        agent_db[e_a.spawningHash[i]].alive[j] -= killed
+        if agent_db[e_a.spawningHash[i]].alive[j] > 0
+          killed = rand(Binomial(agent_db[e_a.spawningHash[i]].alive[j], a_a.extramortality[stage]))
+          agent_db[e_a.spawningHash[i]].alive[j] -= killed
+        end
+      end
+    end
+  end
+
+  return agent_db
+end
 
 function injectAgents!(agent_db::Vector, spawn_agents::Vector, new_stock::Int64, week_num::Int64)
   """
