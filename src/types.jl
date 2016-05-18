@@ -83,12 +83,11 @@ type EnviroAgent
   """
   locationID::Int64 #locationID corresponds to the ID in the habitat array
   alive::Vector
-
+  killed::Vector
   weekNum::Vector
-
   class::Vector
 
-  EnviroAgent(locationID) = new(locationID, [0], [0], [ClassPopulation([0,0,0,0], 0)])
+  EnviroAgent(locationID) = new(locationID, [0], [0,0,0,0], [0], [ClassPopulation([0,0,0,0], 0)])
 end
 
 
