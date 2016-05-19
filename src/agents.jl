@@ -73,6 +73,7 @@ function kill!(agent_db::Vector, e_a::EnvironmentAssumptions, a_a::AgentAssumpti
           #Number of fish killed follows binomial distribution with arguments of number of fish alive
           #and natural mortality in the form of a probability
           killed = rand(Binomial(agent_db[i].alive[j], a_a.naturalmortality[habitat, stage]))
+          agent_db[i].killed[stage] += killed #This SHOULD add the number of killed fish to the vector, but doesn't...
           agent_db[i].alive[j] -= killed
           if agent_db[i].alive[j] > 0
             killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
@@ -155,7 +156,13 @@ function removeEmptyClass!(age_db::Vector)
   end
 end
 
+#Need to add ability to check for empty classes, but need to fix error of
+#no added killed fish first.
 function writeMortalitySummary(agent_db::Vector)
+  """
+  This function writes the mortality summary to a .csv file, which shows the Number
+  of fish killed in each locationID as well as the total of fish killed in each stage.
+  """
   writePath = string(split(Base.source_path(), "FishABM.jl")[1], "FishABM.jl/simulations/results/mortality_summary.csv")
   outfile = open(writePath, "w")
   for i = 1:length(agent_db)
