@@ -154,3 +154,14 @@ function removeEmptyClass!(age_db::Vector)
     end
   end
 end
+
+function writeMortalitySummary(agent_db::Vector)
+  writePath = string(split(Base.source_path(), "FishABM.jl")[1], "FishABM.jl/simulations/results/mortality_summary.csv")
+  outfile = open(writePath, "w")
+  for i = 1:length(agent_db)
+    #writedlm(outfile, agent_db[i].killed)
+    write(outfile, join((agent_db[i].locationID, agent_db[i].killed[1], agent_db[i].killed[2], agent_db[i].killed[3], agent_db[i].killed[4]), ","), "\n")
+  end
+
+  close(outfile)
+end
