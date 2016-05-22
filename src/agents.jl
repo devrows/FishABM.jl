@@ -76,7 +76,7 @@ function kill!(agent_db::Vector, e_a::EnvironmentAssumptions, a_a::AgentAssumpti
           agent_db[i].killed[stage] += killed #This SHOULD add the number of killed fish to the vector, but doesn't...
           agent_db[i].alive[j] -= killed
           if agent_db[i].alive[j] > 0
-            if e_a.risk[agent_db[i].locationID]
+            if in(agent_db[i].locationID, e_a.risk)
               killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
               agent_db[i].killed[stage] += killed
               agent_db[i].alive[j] -= killed
