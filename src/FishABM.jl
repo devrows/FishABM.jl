@@ -24,7 +24,11 @@ module FishABM
     AgentDB,
     findCurrentStage,
     injectAgents!,
+    kill!,
+    spawn!,
+    getAdultPopulation,
     removeEmptyClass!,
+    writeMortalitySummary,
 
     # environment.jl functions
     isEmpty,
@@ -48,5 +52,5 @@ module FishABM
     include("simulate.jl")
     include("simulationResults.jl")
     include("stock.jl")
-    include("utilities.jl")
+    #include("utilities.jl")
 end

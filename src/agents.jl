@@ -28,7 +28,6 @@ function AgentDB(enviro::EnvironmentAssumptions)
   return agent_db
 end
 
-
 #=
   Tweak this to find the current stage from the current_week and spawn_week
 =#
@@ -53,6 +52,43 @@ function findCurrentStage(current_age::Int64, growth_age::Vector)
   return currentStage
 end
 
+function kill!(agent_db::Vector, e_a::EnvironmentAssumptions, a_a::AgentAssumptions, week::Int64)
+  """
+    This function generates a mortality based on the stage of the fish and its corresponding natural mortality
+    and its location within the habitat as described in EnvironmentAssumptions.
+  """
+  classLength = length((agent_db[1]).weekNum)
+
+  for i = 1:length(agent_db)
+    #Check if class is empty. If not empty, continue with kill function. Otherwise skip to next agent
+    if (isEmpty(agent_db[i]) == false)
+      for j = 1:classLength
+
+        current_age = week - agent_db[i].weekNum[j]
+        stage = findCurrentStage(current_age, a_a.growth)
+        if agent_db[i].alive[j] > 0
+
+          habitat = e_a.habitat[agent_db[i].locationID]
+
+          #Number of fish killed follows binomial distribution with arguments of number of fish alive
+          #and natural mortality in the form of a probability
+          killed = rand(Binomial(agent_db[i].alive[j], a_a.naturalmortality[habitat, stage]))
+          agent_db[i].killed[stage] += killed #This SHOULD add the number of killed fish to the vector, but doesn't...
+          agent_db[i].alive[j] -= killed
+          if agent_db[i].alive[j] > 0
+            if in(agent_db[i].locationID, e_a.risk)
+              killed = rand(Binomial(agent_db[i].alive[j], a_a.extramortality[stage]))
+              agent_db[i].killed[stage] += killed
+              agent_db[i].alive[j] -= killed
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return agent_db
+end
 
 function injectAgents!(agent_db::Vector, spawn_agents::Vector, new_stock::Int64, week_num::Int64)
   """
@@ -93,6 +129,61 @@ function injectAgents!(agent_db::Vector, spawn_agents::Vector, new_stock::Int64,
   return agent_db
 end
 
+function spawn!(agent_db::Vector, adult_a::AdultAssumptions, enviro_a::EnvironmentAssumptions, week::Int64, carryingcapacity::Float64,
+  adult_pop::Int64)
+
+  if isnan(adult_a.fecunditycompensation)
+    compensation_factor_a = 1
+  else
+    compensation_factor_a = 2*(1-cdf(Normal(carryingcapacity, carryingcapacity/adult_a.fecunditycompensation), adult_pop))
+  end
+
+  @assert(0.01 < compensation_factor_a < 1.99, "Population regulation has failed, respecify simulation parameters")
+
+  if isnan(adult_a.maturitycompensation)
+    compensation_factor_b = 1
+  else
+    compensation_factor_b = 2*(1-cdf(Normal(carryingcapacity, carryingcapacity/adult_a.maturitycompensation), adult_pop))
+  end
+
+  @assert(0.01 < compensation_factor_b < 1.99, "Population regulation has failed, respecify simulation parameters")
+
+  brood_size = rand(Poisson(compensation_factor_a*adult_a.broodsize[1]), rand(Binomial(adult_pop, cdf(Binomial(length(adult_a.broodsize)+2, min(1, compensation_factor_b*adult_a.halfmature/(length(adult_a.broodsize)+2))), 2)*0.5)))
+
+  for i = 2:length(adult_a.broodsize)
+    append!(brood_size, rand(Poisson(compensation_factor_a*adult_a.broodsize[i]), rand(Binomial(adult_pop, cdf(Binomial(length(adult_a.broodsize)+2, min(1, compensation_factor_b*adult_a.halfmature/(length(adult_a.broodsize)+2))), i + 1)*0.5))))
+  end
+  brood_location = sample(find(enviro_a.spawning), length(brood_size))
+
+  for i = 1:length(agent_db)
+    push!((agent_db[i]).alive, 0)
+    push!((agent_db[i]).weekNum, week)
+  end
+
+  classLength = length((agent_db[1]).weekNum)
+  for i = 1:length(brood_size)
+    agent_db[brood_location[i]].alive[classLength] = brood_size[i]
+  end
+
+  return agent_db
+end
+
+function getAdultPopulation(agent_db::Vector, a_a::AgentAssumptions, e_a::EnvironmentAssumptions, week::Int64)
+  classLength = length((agent_db[1]).weekNum)
+  adult_pop = 0
+  for i = 1:length(e_a.spawningHash)
+    if (isEmpty(agent_db[e_a.spawningHash[i]]) == false)
+      for j = 1:classLength
+        current_age = week - agent_db[e_a.spawningHash[i]].weekNum[j]
+        if findCurrentStage(current_age, a_a.growth) == 4
+          adult_pop += agent_db[e_a.spawningHash[i]].alive[j]
+        end
+      end
+    end
+  end
+
+  return adult_pop
+end
 
 function removeEmptyClass!(age_db::Vector)
   """
@@ -120,4 +211,21 @@ function removeEmptyClass!(age_db::Vector)
       shift!((age_db[j]).weekNum)
     end
   end
+end
+
+#Need to add ability to check for empty classes, but need to fix error of
+#no added killed fish first.
+function writeMortalitySummary(agent_db::Vector)
+  """
+  This function writes the mortality summary to a .csv file, which shows the Number
+  of fish killed in each locationID as well as the total of fish killed in each stage.
+  """
+  writePath = string(split(Base.source_path(), "FishABM.jl")[1], "FishABM.jl/simulations/results/mortality_summary.csv")
+  outfile = open(writePath, "w")
+  for i = 1:length(agent_db)
+    #writedlm(outfile, agent_db[i].killed)
+    write(outfile, join((agent_db[i].locationID, agent_db[i].killed[1], agent_db[i].killed[2], agent_db[i].killed[3], agent_db[i].killed[4]), ","), "\n")
+  end
+
+  close(outfile)
 end
