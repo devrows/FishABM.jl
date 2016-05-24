@@ -45,7 +45,7 @@ function simulate_test(carrying_capacity::Vector, effort::Vector, bump::Vector,
 
   spawnWeek = 1; harvestWeek = 52;
 
-  for y = 1:1
+  for y = 1:years
     for w = 1:52
       totalPopulation = globalPopulation.stage[1]+globalPopulation.stage[2]+globalPopulation.stage[3]+globalPopulation.stage[4]
       @assert(totalPopulation < limit, "> $limit agents in current simulation, stopping here.")
@@ -61,6 +61,8 @@ function simulate_test(carrying_capacity::Vector, effort::Vector, bump::Vector,
       end
 
       if w == spawnWeek
+        spawn!(a_db, a_assumpt, e_a, (y*52)+w, k[y], getAdultPopulation(a_db, age_assumpt, e_a, (y*52)+w))
+
         #spawning can be set to any week(s)
         #spawn!(a_db, s_db, s_a, e_a, y, carrying_capacity[y])
       end
@@ -80,11 +82,11 @@ function simulate_test(carrying_capacity::Vector, effort::Vector, bump::Vector,
     #updateAgentLocationArray!()
     #
   end
+  writeMortalitySummary(a_db)
 
   return a_db
 end
 
-enviro_a.risk
 # Specify stock assumptions:
 # * s_a.naturalmortality = Age specific mortality
 # * s_a.halfmature = Age at 50% maturity
@@ -158,15 +160,15 @@ initialStock = [5000, 10000, 15000, 20000]
 using ProgressMeter
 adb = simulate_test(k, effortVar, bumpVar, initialStock, enviro_a, adult_a, a_a)
 
-adb[enviro_a.spawningHash[1]].alive[5]
+adb[enviro_a.spawningHash[1]].alive[52]
 writeMortalitySummary(adb)
 adult_pop = getAdultPopulation(adb, a_a, enviro_a, 1)
 length(adb[1].weekNum)
-brood_location = spawn_test!(adb, adult_a, enviro_a, 52, k[1], adult_pop)
-length(enviro_a.spawningHash)
+spawn_test!(adb, adult_a, enviro_a, 52, k[1], getAdultPopulation(adb, a_a, enviro_a, 1))
+length()
 
-a = [1,4,6,1,54,35,3,236,47,632,234,52,65,4,6534,365,36,1234,234,54,34,56]
 
+length(adult_a.broodsize)
 enviro_a.riskHash
 enviro_a.risk
 
@@ -178,13 +180,20 @@ function spawn_test!(agent_db::Vector, adult_a::AdultAssumptions, enviro_a::Envi
   else
     compensation_factor_a = 2*(1-cdf(Normal(carryingcapacity, carryingcapacity/adult_a.fecunditycompensation), adult_pop))
   end
+
+  @assert(0.01 < compensation_factor_a < 1.99, "Population regulation has failed, respecify simulation parameters")
+
   if isnan(adult_a.maturitycompensation)
     compensation_factor_b = 1
   else
     compensation_factor_b = 2*(1-cdf(Normal(carryingcapacity, carryingcapacity/adult_a.maturitycompensation), adult_pop))
   end
 
+  @assert(0.01 < compensation_factor_b < 1.99, "Population regulation has failed, respecify simulation parameters")
+
+
   brood_size = rand(Poisson(compensation_factor_a*adult_a.broodsize[1]), rand(Binomial(adult_pop, cdf(Binomial(length(adult_a.broodsize)+2, min(1, compensation_factor_b*adult_a.halfmature/(length(adult_a.broodsize)+2))), 2)*0.5)))
+
   for i = 2:length(adult_a.broodsize)
     append!(brood_size, rand(Poisson(compensation_factor_a*adult_a.broodsize[i]), rand(Binomial(adult_pop, cdf(Binomial(length(adult_a.broodsize)+2, min(1, compensation_factor_b*adult_a.halfmature/(length(adult_a.broodsize)+2))), i + 1)*0.5))))
   end
@@ -195,11 +204,15 @@ function spawn_test!(agent_db::Vector, adult_a::AdultAssumptions, enviro_a::Envi
     push!((agent_db[i]).weekNum, week)
   end
 
-  return brood_location
+  classLength = length((agent_db[1]).weekNum)
+  for i = 1:length(brood_size)
+    agent_db[brood_location[i]].alive[classLength] = brood_size[i]
+  end
+
+  return agent_db
 end
 
-
-function getAdultPopulation(agent_db::Vector, a_a::AgentAssumptions, e_a::EnvironmentAssumptions, week::Int64)
+function getAdultPopulation_tester(agent_db::Vector, a_a::AgentAssumptions, e_a::EnvironmentAssumptions, week::Int64)
   classLength = length((agent_db[1]).weekNum)
   adult_pop = 0
   for i = 1:length(e_a.spawningHash)

@@ -25,6 +25,8 @@ module FishABM
     findCurrentStage,
     injectAgents!,
     kill!,
+    spawn!,
+    getAdultPopulation,
     removeEmptyClass!,
     writeMortalitySummary,
 
